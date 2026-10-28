@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>가득 주유 계산기</title><style>*{box-sizing:border-box}body{margin:0;background:#eef2f6;color:#172334;font-family:system-ui,-apple-system,"Noto Sans KR",sans-serif;font-size:16px;line-height:1.55}#fuel-cost-calculator{max-width:620px;margin:0 auto;padding:24px 18px 40px;background:#fff;min-height:100vh}h2{font-size:24px;margin:0 0 22px}h3{font-size:18px;margin:24px 0 12px}.viz-controls{display:flex;flex-wrap:wrap;gap:14px;margin-bottom:16px}.form-label{display:block;flex:1 1 220px;font-size:14px;font-weight:600;min-width:0}.form-control{display:block;width:100%;margin-top:6px;padding:12px;border:1px solid #b5c2d1;border-radius:10px;font:inherit;font-size:16px;background:#fff;color:#172334;min-height:48px}.card{padding:22px;background:#edf5ff;border-radius:16px;margin:18px 0}.viz-stat-value{font-size:34px;font-weight:700;color:#145ab3;margin:6px 0}.tabular-nums{font-variant-numeric:tabular-nums}.text-small{font-size:13px;color:#536273}.text-destructive{font-size:13px;color:#a3480b;margin:12px 0}.btn{border:1px solid #b5c2d1;background:#fff;border-radius:10px;padding:11px 14px;font:inherit;min-height:44px;color:#172334}.btn-primary{background:#145ab3;color:#fff;border-color:#145ab3;width:100%}.btn-ghost{padding:8px;font-size:13px}hr{border:0;border-top:1px solid #dce3ec;margin:24px 0}.table-responsive{overflow-x:auto}.table{border-collapse:collapse;width:100%;font-size:13px}td,th{padding:10px 4px;border-bottom:1px solid #dce3ec;text-align:left}th{font-weight:600}[data-record-status]{font-size:14px;margin-top:12px}input:focus-visible,button:focus-visible{outline:3px solid #8fbaff;outline-offset:2px}@media(max-width:380px){#fuel-cost-calculator{padding:20px 12px}.table{font-size:12px}.viz-stat-value{font-size:30px}}</style><link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoJxqz5CZdT2g=" crossorigin=""><style>.toolbar{display:flex;gap:8px;flex-wrap:wrap}.toolbar>*{flex:1}.toolbar button{font-weight:650}.status{padding:10px;background:#f0f5fc;border-radius:9px;margin:10px 0;font-size:13px;white-space:pre-line}#station-map{display:block;position:relative;width:100%;max-width:100%;min-width:0;height:360px;background:#e4edf4;border-radius:12px;margin:12px 0;overflow:hidden;isolation:isolate}#nearby{width:100%;max-width:100%;min-width:0;overflow:hidden}#station-map .leaflet-container{width:100%;max-width:100%;height:100%;overflow:hidden}#station-map .leaflet-control-container{max-width:100%}.station{border:1px solid #dce3ec;border-radius:12px;padding:12px;margin:10px 0}.station strong{font-size:15px}.station .sub{color:#5c6877;font-size:13px}.station .toolbar{margin-top:8px}.tag{display:inline-block;border-radius:15px;background:#edf3ff;padding:2px 8px;font-size:12px}details{margin-top:12px}.note{font-size:13px;color:#586579}</style><style>
+/* Leaflet essential layout rules embedded to survive blocked CDN stylesheets. */
+#station-map.leaflet-container{position:relative;overflow:hidden;outline:0;touch-action:pan-x pan-y;background:#e4edf4}
+#station-map .leaflet-pane,#station-map .leaflet-tile,#station-map .leaflet-marker-icon,#station-map .leaflet-marker-shadow,#station-map .leaflet-tile-container,#station-map .leaflet-pane>svg,#station-map .leaflet-pane>canvas,#station-map .leaflet-zoom-box,#station-map .leaflet-image-layer{position:absolute;left:0;top:0}
+#station-map .leaflet-map-pane,#station-map .leaflet-tile-pane,#station-map .leaflet-overlay-pane,#station-map .leaflet-shadow-pane,#station-map .leaflet-marker-pane,#station-map .leaflet-tooltip-pane,#station-map .leaflet-popup-pane{position:absolute;left:0;top:0;width:100%;height:100%}
+#station-map .leaflet-pane{z-index:400}
+#station-map .leaflet-tile-pane{z-index:200}
+#station-map .leaflet-overlay-pane{z-index:400}
+#station-map .leaflet-shadow-pane{z-index:500}
+#station-map .leaflet-marker-pane{z-index:600}
+#station-map .leaflet-tooltip-pane{z-index:650}
+#station-map .leaflet-popup-pane{z-index:700}
+#station-map .leaflet-tile{width:256px;height:256px;border:0;max-width:none!important;max-height:none!important;visibility:inherit;user-select:none;-webkit-user-select:none}
+#station-map .leaflet-tile-container{pointer-events:none}
+#station-map .leaflet-zoom-animated{transform-origin:0 0}
+#station-map .leaflet-control{position:relative;z-index:800;pointer-events:auto}
+#station-map .leaflet-top,#station-map .leaflet-bottom{position:absolute;z-index:1000;pointer-events:none}
+#station-map .leaflet-top{top:0}#station-map .leaflet-bottom{bottom:0}#station-map .leaflet-left{left:0}#station-map .leaflet-right{right:0}
+#station-map .leaflet-left .leaflet-control{float:left;clear:both;margin-left:10px}#station-map .leaflet-right .leaflet-control{float:right;clear:both;margin-right:10px}
+#station-map .leaflet-top .leaflet-control{margin-top:10px}#station-map .leaflet-bottom .leaflet-control{margin-bottom:10px}
+#station-map .leaflet-control-zoom{border:2px solid #b6c1ce;border-radius:6px;overflow:hidden}
+#station-map .leaflet-control-zoom a{display:block;width:30px;height:30px;line-height:30px;text-align:center;background:white;color:#172334;text-decoration:none;font:bold 20px Arial;border-bottom:1px solid #ddd}
+#station-map .leaflet-control-attribution{background:#ffffffd9;padding:2px 5px;font:10px/1.3 Arial;color:#333}
+#station-map .leaflet-control-attribution a{color:#145ab3}
+#station-map .leaflet-interactive{cursor:pointer}
+#station-map .leaflet-popup{position:absolute;text-align:center;margin-bottom:20px}
+#station-map .leaflet-popup-content-wrapper{background:white;padding:10px;border-radius:8px;box-shadow:0 2px 8px #0003}
+#station-map .leaflet-popup-tip-container{display:none}
+#station-map .leaflet-container img.leaflet-image-layer,#station-map .leaflet-container .leaflet-tile{max-width:none!important}
+#station-map .leaflet-marker-icon,#station-map .leaflet-marker-shadow{display:block}
+@media(max-width:600px){#station-map{height:340px;min-height:300px}}
+</style></head><body>
+<div id="fuel-cost-calculator">
+  <h2>가득 주유 금액 계산</h2>
+  <div class="viz-controls">
+    <label class="form-label" for="fuel-km">남은 주행거리 (km)
+      <input class="form-control" id="fuel-km" type="number" min="0" step="1" inputmode="numeric" value="250">
+    </label>
+    <label class="form-label" for="fuel-price">휘발유 가격 (원/L)
+      <input class="form-control" id="fuel-price" type="number" min="1" step="1" inputmode="numeric" value="1800">
+    </label>
+  </div>
+  <div class="card viz-stat" aria-live="polite">
+    <div>가득 채울 때 예상 금액</div>
+    <div class="viz-stat-value tabular-nums" data-amount>—</div>
+    <div class="text-small" data-litres></div>
+  </div>
+  <div role="alert" class="text-destructive" data-error></div>
+  <p class="text-small">기존 기록을 이용한 추정 금액입니다. 실제 주유 금액은 달라질 수 있습니다.</p>
+  <hr>
+<hr><section id="nearby"><h3>⛽ 내 주변 주유소 지도</h3><p class="note">주유소 위치는 OpenStreetMap 공개 지도 데이터로 검색합니다. <b>실시간 휘발유 가격은 별도 연동 전이므로 표시되지 않습니다.</b></p><div class="viz-controls"><label class="form-label">검색 반경<select id="radius" class="form-control"><option value="1000">1km</option><option value="3000" selected>3km</option><option value="5000">5km</option><option value="10000">10km</option></select></label><label class="form-label">정렬<select id="order" class="form-control"><option value="distance">가까운 순</option><option value="name">이름 순</option></select></label></div><div class="toolbar"><button class="btn btn-primary" id="gps" type="button">📍 현재 위치 찾기</button><button class="btn" id="search-stations" type="button">⛽ 주유소 검색</button></div><div class="status" id="map-status" role="status">먼저 '현재 위치 찾기'를 눌러주세요. 위치가 차단되면 아래 수동 좌표를 사용할 수 있습니다.</div><div id="station-map" aria-label="주유소 지도"></div><details><summary>GPS가 안 될 때: 좌표 직접 입력</summary><div class="viz-controls"><label class="form-label">위도<input id="lat" class="form-control" type="number" step="any" placeholder="예: 37.5665"></label><label class="form-label">경도<input id="lon" class="form-control" type="number" step="any" placeholder="예: 126.9780"></label></div><button class="btn" type="button" id="manual">입력한 위치로 지도 이동</button><p class="note">또는 지도에서 원하는 지점을 누르면 검색 중심이 바뀝니다.</p></details><h3>검색된 주유소 <span id="station-count"></span></h3><div id="station-list"><p class="note">검색 버튼을 누르면 이곳에 결과가 표시됩니다.</p></div><p class="note">주유소별 가격 확인: <a href="https://www.opinet.co.kr/" target="_blank" rel="noopener">오피넷 공식 사이트</a>. 가격을 확인한 뒤 아래 계산기에 직접 입력하거나, 검색 결과의 '가격 입력' 버튼을 이용하세요.</p></section>
+  <h3>실제 주유 기록 입력</h3>
+  <form data-record-form>
+    <div class="viz-controls">
+      <label class="form-label" for="record-km">주유 전 잔량 (남은 km)
+        <input class="form-control" id="record-km" type="number" min="0" step="any" inputmode="decimal" required>
+      </label>
+      <label class="form-label" for="record-price">유류값 (원/L)
+        <input class="form-control" id="record-price" type="number" min="0.01" step="any" inputmode="decimal" required>
+      </label>
+      <label class="form-label" for="record-paid">가득 넣은 실제 금액 (원)
+        <input class="form-control" id="record-paid" type="number" min="1" step="1" inputmode="numeric" required>
+      </label>
+    </div>
+    <button class="btn btn-primary" type="submit">기록 추가 · 계산에 반영</button>
+  </form>
+  <div data-record-status aria-live="polite"></div>
+  <h3>계산에 반영된 기록 <span data-count></span></h3>
+  <div class="table-responsive">
+    <table class="table table-sm">
+      <thead><tr><th>잔량 km</th><th>원/L</th><th>실제 금액</th><th>주유량 L</th><th>관리</th></tr></thead>
+      <tbody data-records></tbody>
+    </table>
+  </div>
+  <hr>
+  <div class="viz-controls">
+    <button class="btn" type="button" data-backup>기록 백업 내려받기</button>
+    <label class="form-label" for="restore">백업 불러오기<input class="form-control" id="restore" type="file" accept="application/json,.json"></label>
+  </div>
+  <p class="text-small">기록은 이 파일을 여는 브라우저에 저장됩니다. 파일을 옮기거나 브라우저 데이터를 지우면 사라질 수 있으니 백업해 주세요. 자동 저장이 지원되지 않는 경우 알림이 표시됩니다.</p>
+</div>
+<script>
+(() => {
+  const root = document.getElementById('fuel-cost-calculator');
+  const km = root.querySelector('#fuel-km');
+  const price = root.querySelector('#fuel-price');
+  const amount = root.querySelector('[data-amount]');
+  const litres = root.querySelector('[data-litres]');
+  const error = root.querySelector('[data-error]');
+  let records = [[50,2011,87000],[25,2011,92000],[130,2011,80000],[50,1858,75000],[17,1899,78000]];
+  const form = root.querySelector('[data-record-form]');
+  const status = root.querySelector('[data-record-status]');
+  const key = 'kari-fuel-records-v1';
+  const valid = rows => Array.isArray(rows) && rows.every(r => Array.isArray(r) && r.length===3 && r.every(Number.isFinite) && r[0]>=0 && r[1]>0 && r[2]>0);
+  try { const saved=JSON.parse(localStorage.getItem(key)); if(valid(saved)) records=saved; } catch(e) {}
+  function persist() {
+    try {localStorage.setItem(key,JSON.stringify(records));return true;}
+    catch(e) {return false;}
+  }
+  function renderRecords() {
+    root.querySelector('[data-count]').textContent = '('+records.length+'건)';
+    const tbody = root.querySelector('[data-records]');
+    tbody.replaceChildren();
+    records.forEach((r,index) => {
+      const tr = document.createElement('tr');
+      [r[0].toLocaleString('ko-KR'),r[1].toLocaleString('ko-KR'),r[2].toLocaleString('ko-KR')+'원',(r[2]/r[1]).toFixed(2)].forEach(value => {
+        const td = document.createElement('td'); td.textContent=value; td.className='tabular-nums'; tr.append(td);
+      });
+      const td = document.createElement('td'), button = document.createElement('button');
+      button.type='button'; button.className='btn btn-ghost'; button.textContent='삭제';
+      button.setAttribute('aria-label',(index+1)+'번째 주유 기록 삭제');
+      button.addEventListener('click',() => {records.splice(index,1);renderRecords();update();status.textContent=persist()?'기록을 삭제하고 저장했습니다.':'기록을 삭제했습니다. 자동 저장이 불가능하므로 백업을 내려받아 주세요.';});
+      td.append(button);tr.append(td);tbody.append(tr);
+    });
+  }
+  function update() {
+    const distance = Number(km.value), unitPrice = Number(price.value);
+    if (km.value.trim()==='' || price.value.trim()==='' || !Number.isFinite(distance) || !Number.isFinite(unitPrice) || distance<0 || unitPrice<=0) {
+      amount.textContent='—'; litres.textContent=''; error.textContent='남은 거리는 0 이상, 휘발유 가격은 0보다 큰 숫자로 입력해 주세요.'; return;
+    }
+    const meanX = records.reduce((s,r) => s+r[0],0)/records.length;
+    const meanY = records.reduce((s,r) => s+r[2]/r[1],0)/records.length;
+    const denominator = records.reduce((s,r) => s+(r[0]-meanX)**2,0);
+    const slope = records.reduce((s,r) => s+(r[0]-meanX)*(r[2]/r[1]-meanY),0)/denominator;
+    if(records.length<2 || !Number.isFinite(slope) || slope>=0) {
+      amount.textContent='—';litres.textContent='';error.textContent='서로 다른 잔량의 주유 기록이 필요합니다. 잔량과 주유량의 관계를 확인해 주세요.';return;
+    }
+    const volume = Math.max(0,meanY+slope*(distance-meanX));
+    amount.textContent='약 '+(Math.round(volume*unitPrice/1000)*1000).toLocaleString('ko-KR')+'원';
+    litres.textContent='예상 주유량 '+volume.toFixed(1)+' L';
+    error.textContent=distance>Math.max(...records.map(r=>r[0])) || distance<Math.min(...records.map(r=>r[0]))?'주유 기록 범위를 벗어난 거리로, 오차가 커질 수 있습니다.':'';
+  }
+  form.addEventListener('submit',event => {
+    event.preventDefault();
+    if(!form.reportValidity()) return;
+    const row = ['#record-km','#record-price','#record-paid'].map(selector => Number(root.querySelector(selector).value));
+    if(!row.every(Number.isFinite) || row[0]<0 || row[1]<=0 || row[2]<=0) return;
+    records.push(row);renderRecords();update();form.reset();
+    status.textContent=persist()?'기록을 추가하고 저장했습니다.':'기록을 추가했습니다. 자동 저장이 불가능하므로 백업을 내려받아 주세요.';
+  });
+  root.querySelector('[data-backup]').addEventListener('click',() => {
+    const url=URL.createObjectURL(new Blob([JSON.stringify(records,null,2)],{type:'application/json'}));
+    const a=document.createElement('a');a.href=url;a.download='fuel-records.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+  });
+  root.querySelector('#restore').addEventListener('change',async event => {
+    const file=event.target.files[0];if(!file)return;
+    try {
+      const rows=JSON.parse(await file.text());if(!valid(rows))throw Error();
+      if(!confirm('현재 기록을 백업 파일의 기록으로 교체할까요?'))return;
+      records=rows;renderRecords();update();status.textContent=persist()?'백업을 불러오고 저장했습니다.':'백업을 불러왔습니다. 자동 저장이 지원되지 않습니다.';
+    }catch(e){status.textContent='올바른 주유 기록 백업 파일을 선택해 주세요.';}
+    event.target.value='';
+  });
+  if(!persist()) status.textContent='이 브라우저에서는 자동 저장이 지원되지 않습니다. 기록 백업을 이용해 주세요.';
+  km.addEventListener('input',update); price.addEventListener('input',update); renderRecords();update();
+})();
+</script>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script>
+(()=>{
+const $=id=>document.getElementById(id), status=$('map-status');
+let center=null,map=null,markers=null,locationMarker=null,stations=[];
+function msg(s){status.textContent=s}
+function init(){if(!window.L){msg('지도 라이브러리를 불러오지 못했습니다. 인터넷 연결을 확인하세요.');return false}if(map)return true;map=L.map('station-map').setView([36.5,127.8],7);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap contributors',maxZoom:19}).addTo(map);markers=L.layerGroup().addTo(map);setTimeout(()=>map.invalidateSize({pan:false}),100);setTimeout(()=>map.invalidateSize({pan:false}),650);window.addEventListener('resize',()=>map.invalidateSize({pan:false}));if(window.ResizeObserver){new ResizeObserver(()=>map.invalidateSize({pan:false})).observe($('station-map'));}map.on('click',e=>setCenter(e.latlng.lat,e.latlng.lng));return true}
+function setCenter(lat,lon){if(!Number.isFinite(lat)||!Number.isFinite(lon)||Math.abs(lat)>90||Math.abs(lon)>180){msg('위도와 경도를 확인하세요.');return}center=[lat,lon];$('lat').value=lat.toFixed(6);$('lon').value=lon.toFixed(6);if(init()){map.invalidateSize({pan:false});map.setView(center,14);if(locationMarker)map.removeLayer(locationMarker);locationMarker=L.circleMarker(center,{radius:9,color:'#145ab3',fillColor:'#145ab3',fillOpacity:.8}).addTo(map).bindPopup('검색 중심 위치')}msg('위치를 설정했습니다. 이제 주유소 검색 버튼을 누르세요.')}
+$('gps').onclick=()=>{if(!navigator.geolocation){msg('이 브라우저는 위치 기능을 지원하지 않습니다.');return}msg('현재 위치를 확인하고 있습니다…');navigator.geolocation.getCurrentPosition(p=>setCenter(p.coords.latitude,p.coords.longitude),e=>msg('GPS 위치 확인 실패: '+e.message+'\nHTTPS 웹주소에서 실행하고 브라우저 위치 권한을 허용하세요. 또는 지도에서 검색할 위치를 선택하세요.'),{enableHighAccuracy:true,timeout:15000,maximumAge:30000})};
+$('manual').onclick=()=>setCenter(Number($('lat').value),Number($('lon').value));
+function haversine(a,b,c,d){const R=6371,rad=Math.PI/180,dl=(c-a)*rad,dn=(d-b)*rad,x=Math.sin(dl/2)**2+Math.cos(a*rad)*Math.cos(c*rad)*Math.sin(dn/2)**2;return 2*R*Math.asin(Math.sqrt(x))}
+function navUrl(s){return 'https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent(s.lat+','+s.lon)}
+function render(){markers?.clearLayers();const list=$('station-list');list.replaceChildren();$('station-count').textContent='('+stations.length+'곳)';const ordered=[...stations].sort((a,b)=>$('order').value==='name'?a.name.localeCompare(b.name,'ko'):a.km-b.km);if(!ordered.length){list.textContent='검색 반경 안에서 확인된 주유소가 없습니다. 반경을 넓혀 보세요.';return}ordered.forEach(s=>{if(map){const marker=L.marker([s.lat,s.lon]).addTo(markers);marker.bindPopup(document.createTextNode(s.name));}const card=document.createElement('div');card.className='station';const head=document.createElement('div');const strong=document.createElement('strong');strong.textContent=s.name;head.append(strong);card.append(head);const info=document.createElement('div');info.className='sub';info.textContent=s.km.toFixed(2)+'km · '+(s.address||'주소 정보 없음')+' · 가격 정보 미연동';card.append(info);const bar=document.createElement('div');bar.className='toolbar';const view=document.createElement('button');view.className='btn';view.textContent='지도에서 보기';view.onclick=()=>{map.setView([s.lat,s.lon],16);window.scrollTo({top:$('nearby').getBoundingClientRect().top+window.scrollY,behavior:'smooth'})};const nav=document.createElement('button');nav.className='btn';nav.textContent='길찾기';nav.onclick=()=>window.open(navUrl(s),'_blank','noopener');const set=document.createElement('button');set.className='btn';set.textContent='가격 입력';set.onclick=()=>{const value=prompt(s.name+'의 휘발유 가격(원/L)을 입력하세요. 오피넷 등에서 확인한 가격을 입력해 주세요.');if(value===null)return;const v=Number(value.replaceAll(',',''));if(!Number.isFinite(v)||v<=0){alert('올바른 가격을 입력하세요.');return}$('fuel-price').value=String(v);$('fuel-price').dispatchEvent(new Event('input',{bubbles:true}));window.scrollTo({top:0,behavior:'smooth'})};bar.append(view,nav,set);card.append(bar);list.append(card)})}
+$('order').onchange=render;
+$('search-stations').onclick=async()=>{if(!center){msg('먼저 현재 위치 찾기를 누르거나 지도에서 검색 중심을 선택하세요.');return}const btn=$('search-stations');btn.disabled=true;msg('주변 주유소 위치를 검색하고 있습니다…');const radius=Number($('radius').value);const query='[out:json][timeout:25];(node["amenity"="fuel"](around:'+radius+','+center[0]+','+center[1]+');way["amenity"="fuel"](around:'+radius+','+center[0]+','+center[1]+'););out center;';const endpoints=['https://overpass.kumi.systems/api/interpreter','https://overpass-api.de/api/interpreter'];let error='';try{let data=null;for(const endpoint of endpoints){try{const ctl=new AbortController();const t=setTimeout(()=>ctl.abort(),18000);let r;try{r=await fetch(endpoint,{method:'POST',body:new URLSearchParams({data:query}),signal:ctl.signal})}finally{clearTimeout(t)}if(!r.ok)throw Error('HTTP '+r.status);data=await r.json();break}catch(e){error=e.message}}if(!data)throw Error(error||'서버 접속 실패');const unique=new Map();for(const e of data.elements||[]){const lat=e.lat??e.center?.lat,lon=e.lon??e.center?.lon;if(!Number.isFinite(lat)||!Number.isFinite(lon))continue;const t=e.tags||{};const km=haversine(center[0],center[1],lat,lon);const address=[t['addr:city'],t['addr:street'],t['addr:housenumber']].filter(Boolean).join(' ');unique.set(e.type+e.id,{name:t.name||t.brand||'이름 없는 주유소',lat,lon,km,address})}stations=[...unique.values()];render();msg('주유소 '+stations.length+'곳을 찾았습니다. 위치 정보는 공개 지도 데이터이며, 실시간 유가 정보는 제공되지 않습니다.')}catch(e){msg('주유소 검색 실패: '+e.message+'\n인터넷 연결을 확인하거나 잠시 후 다시 검색해 주세요.');}finally{btn.disabled=false}};
+init();
+})();
+</script>
+</body></html>
