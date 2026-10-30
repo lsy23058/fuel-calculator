@@ -49,7 +49,15 @@
   <div role="alert" class="text-destructive" data-error></div>
   <p class="text-small">기존 기록을 이용한 추정 금액입니다. 실제 주유 금액은 달라질 수 있습니다.</p>
   <hr>
-<hr><section id="nearby"><h3>⛽ 내 주변 주유소 지도</h3><p class="note">주유소 위치는 OpenStreetMap 공개 지도 데이터로 검색합니다. <b>실시간 휘발유 가격은 별도 연동 전이므로 표시되지 않습니다.</b></p><div class="viz-controls"><label class="form-label">검색 반경<select id="radius" class="form-control"><option value="1000">1km</option><option value="3000" selected>3km</option><option value="5000">5km</option><option value="10000">10km</option></select></label><label class="form-label">정렬<select id="order" class="form-control"><option value="distance">가까운 순</option><option value="name">이름 순</option></select></label></div><div class="toolbar"><button class="btn btn-primary" id="gps" type="button">📍 현재 위치 찾기</button><button class="btn" id="search-stations" type="button">⛽ 주유소 검색</button></div><div class="status" id="map-status" role="status">먼저 '현재 위치 찾기'를 눌러주세요. 위치가 차단되면 아래 수동 좌표를 사용할 수 있습니다.</div><div id="station-map" aria-label="주유소 지도"></div><details><summary>GPS가 안 될 때: 좌표 직접 입력</summary><div class="viz-controls"><label class="form-label">위도<input id="lat" class="form-control" type="number" step="any" placeholder="예: 37.5665"></label><label class="form-label">경도<input id="lon" class="form-control" type="number" step="any" placeholder="예: 126.9780"></label></div><button class="btn" type="button" id="manual">입력한 위치로 지도 이동</button><p class="note">또는 지도에서 원하는 지점을 누르면 검색 중심이 바뀝니다.</p></details><h3>검색된 주유소 <span id="station-count"></span></h3><div id="station-list"><p class="note">검색 버튼을 누르면 이곳에 결과가 표시됩니다.</p></div><p class="note">주유소별 가격 확인: <a href="https://www.opinet.co.kr/" target="_blank" rel="noopener">오피넷 공식 사이트</a>. 가격을 확인한 뒤 아래 계산기에 직접 입력하거나, 검색 결과의 '가격 입력' 버튼을 이용하세요.</p></section>
+<hr><section id="nearby"><h3>⛽ 내 주변 주유소 · 실시간 휘발유 가격</h3>
+<p class="note">오피넷 제공 휘발유 가격을 조회합니다. 가격은 실제 결제 시점과 다를 수 있습니다.</p>
+<div class="viz-controls"><label class="form-label">검색 반경<select id="radius" class="form-control"><option value="1000">1km</option><option value="3000" selected>3km</option><option value="5000">5km</option></select></label><label class="form-label">정렬<select id="order" class="form-control"><option value="price">저렴한 순</option><option value="distance">가까운 순</option><option value="name">이름 순</option></select></label></div>
+<div class="toolbar"><button class="btn btn-primary" id="gps" type="button">📍 현재 위치 찾기</button><button class="btn" id="search-stations" type="button">⛽ 실시간 가격 검색</button></div>
+<div class="status" id="map-status" role="status">먼저 '현재 위치 찾기'를 누르세요. 위치 권한을 사용할 수 없다면 지도에서 검색할 지점을 선택하세요.</div>
+<div id="station-map" aria-label="주유소 지도"></div>
+<details><summary>GPS가 안 될 때: 좌표 직접 입력</summary><div class="viz-controls"><label class="form-label">위도<input id="lat" class="form-control" type="number" step="any" placeholder="예: 37.5665"></label><label class="form-label">경도<input id="lon" class="form-control" type="number" step="any" placeholder="예: 126.9780"></label></div><button class="btn" type="button" id="manual">입력한 위치로 지도 이동</button><p class="note">지도에서 원하는 지점을 클릭해도 검색 중심이 변경됩니다.</p></details>
+<h3>검색된 주유소 <span id="station-count"></span></h3><div id="station-list"><p class="note">검색 버튼을 누르면 주유소와 가격이 표시됩니다.</p></div>
+<p class="note">자료: <a href="https://www.opinet.co.kr/" target="_blank" rel="noopener">한국석유공사 오피넷</a>. 실제 판매가격 및 운영 여부는 방문 전 확인하세요.</p></section>
   <h3>실제 주유 기록 입력</h3>
   <form data-record-form>
     <div class="viz-controls">
@@ -158,20 +166,85 @@
 </script>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script src="https://cdn.jsdelivr.net/npm/proj4@2.12.1/dist/proj4.js"></script>
 <script>
 (()=>{
 const $=id=>document.getElementById(id), status=$('map-status');
+const API='https://little-frog-0678.lsy2305888.workers.dev/prices';
+// 오피넷 KATEC (Bessel / Korea TM); GPS WGS84 좌표를 변환합니다.
+const KATEC='+proj=tmerc +lat_0=38 +lon_0=128 +k=0.9999 +x_0=400000 +y_0=600000 +ellps=bessel +towgs84=-115.80,474.99,674.11,-1.16,2.31,1.63,6.43 +units=m +no_defs';
 let center=null,map=null,markers=null,locationMarker=null,stations=[];
 function msg(s){status.textContent=s}
-function init(){if(!window.L){msg('지도 라이브러리를 불러오지 못했습니다. 인터넷 연결을 확인하세요.');return false}if(map)return true;map=L.map('station-map').setView([36.5,127.8],7);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap contributors',maxZoom:19}).addTo(map);markers=L.layerGroup().addTo(map);setTimeout(()=>map.invalidateSize({pan:false}),100);setTimeout(()=>map.invalidateSize({pan:false}),650);window.addEventListener('resize',()=>map.invalidateSize({pan:false}));if(window.ResizeObserver){new ResizeObserver(()=>map.invalidateSize({pan:false})).observe($('station-map'));}map.on('click',e=>setCenter(e.latlng.lat,e.latlng.lng));return true}
-function setCenter(lat,lon){if(!Number.isFinite(lat)||!Number.isFinite(lon)||Math.abs(lat)>90||Math.abs(lon)>180){msg('위도와 경도를 확인하세요.');return}center=[lat,lon];$('lat').value=lat.toFixed(6);$('lon').value=lon.toFixed(6);if(init()){map.invalidateSize({pan:false});map.setView(center,14);if(locationMarker)map.removeLayer(locationMarker);locationMarker=L.circleMarker(center,{radius:9,color:'#145ab3',fillColor:'#145ab3',fillOpacity:.8}).addTo(map).bindPopup('검색 중심 위치')}msg('위치를 설정했습니다. 이제 주유소 검색 버튼을 누르세요.')}
-$('gps').onclick=()=>{if(!navigator.geolocation){msg('이 브라우저는 위치 기능을 지원하지 않습니다.');return}msg('현재 위치를 확인하고 있습니다…');navigator.geolocation.getCurrentPosition(p=>setCenter(p.coords.latitude,p.coords.longitude),e=>msg('GPS 위치 확인 실패: '+e.message+'\nHTTPS 웹주소에서 실행하고 브라우저 위치 권한을 허용하세요. 또는 지도에서 검색할 위치를 선택하세요.'),{enableHighAccuracy:true,timeout:15000,maximumAge:30000})};
+function init(){
+ if(!window.L){msg('지도 라이브러리를 불러오지 못했습니다. 인터넷 연결을 확인하세요.');return false}
+ if(map)return true;
+ map=L.map('station-map').setView([36.5,127.8],7);
+ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap contributors',maxZoom:19}).addTo(map);
+ markers=L.layerGroup().addTo(map);
+ setTimeout(()=>map.invalidateSize({pan:false}),100);
+ setTimeout(()=>map.invalidateSize({pan:false}),650);
+ window.addEventListener('resize',()=>map.invalidateSize({pan:false}));
+ if(window.ResizeObserver)new ResizeObserver(()=>map.invalidateSize({pan:false})).observe($('station-map'));
+ map.on('click',e=>setCenter(e.latlng.lat,e.latlng.lng));return true;
+}
+function setCenter(lat,lon){
+ if(!Number.isFinite(lat)||!Number.isFinite(lon)||lat<33||lat>39.5||lon<124||lon>132){msg('대한민국 내 위도·경도를 확인하세요.');return}
+ center=[lat,lon];$('lat').value=lat.toFixed(6);$('lon').value=lon.toFixed(6);
+ if(init()){
+  map.invalidateSize({pan:false});map.setView(center,14);
+  if(locationMarker)map.removeLayer(locationMarker);
+  locationMarker=L.circleMarker(center,{radius:9,color:'#145ab3',fillColor:'#145ab3',fillOpacity:.8}).addTo(map).bindPopup('검색 중심 위치');
+ }
+ msg('위치를 설정했습니다. 실시간 가격 검색 버튼을 누르세요.');
+}
+$('gps').onclick=()=>{
+ if(!navigator.geolocation){msg('이 브라우저는 위치 기능을 지원하지 않습니다.');return}
+ msg('현재 위치를 확인하고 있습니다…');
+ navigator.geolocation.getCurrentPosition(p=>setCenter(p.coords.latitude,p.coords.longitude),e=>msg('GPS 위치 확인 실패: '+e.message+'\nHTTPS 웹주소에서 위치 권한을 허용하거나 지도에서 검색할 위치를 선택하세요.'),{enableHighAccuracy:true,timeout:15000,maximumAge:30000});
+};
 $('manual').onclick=()=>setCenter(Number($('lat').value),Number($('lon').value));
-function haversine(a,b,c,d){const R=6371,rad=Math.PI/180,dl=(c-a)*rad,dn=(d-b)*rad,x=Math.sin(dl/2)**2+Math.cos(a*rad)*Math.cos(c*rad)*Math.sin(dn/2)**2;return 2*R*Math.asin(Math.sqrt(x))}
 function navUrl(s){return 'https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent(s.lat+','+s.lon)}
-function render(){markers?.clearLayers();const list=$('station-list');list.replaceChildren();$('station-count').textContent='('+stations.length+'곳)';const ordered=[...stations].sort((a,b)=>$('order').value==='name'?a.name.localeCompare(b.name,'ko'):a.km-b.km);if(!ordered.length){list.textContent='검색 반경 안에서 확인된 주유소가 없습니다. 반경을 넓혀 보세요.';return}ordered.forEach(s=>{if(map){const marker=L.marker([s.lat,s.lon]).addTo(markers);marker.bindPopup(document.createTextNode(s.name));}const card=document.createElement('div');card.className='station';const head=document.createElement('div');const strong=document.createElement('strong');strong.textContent=s.name;head.append(strong);card.append(head);const info=document.createElement('div');info.className='sub';info.textContent=s.km.toFixed(2)+'km · '+(s.address||'주소 정보 없음')+' · 가격 정보 미연동';card.append(info);const bar=document.createElement('div');bar.className='toolbar';const view=document.createElement('button');view.className='btn';view.textContent='지도에서 보기';view.onclick=()=>{map.setView([s.lat,s.lon],16);window.scrollTo({top:$('nearby').getBoundingClientRect().top+window.scrollY,behavior:'smooth'})};const nav=document.createElement('button');nav.className='btn';nav.textContent='길찾기';nav.onclick=()=>window.open(navUrl(s),'_blank','noopener');const set=document.createElement('button');set.className='btn';set.textContent='가격 입력';set.onclick=()=>{const value=prompt(s.name+'의 휘발유 가격(원/L)을 입력하세요. 오피넷 등에서 확인한 가격을 입력해 주세요.');if(value===null)return;const v=Number(value.replaceAll(',',''));if(!Number.isFinite(v)||v<=0){alert('올바른 가격을 입력하세요.');return}$('fuel-price').value=String(v);$('fuel-price').dispatchEvent(new Event('input',{bubbles:true}));window.scrollTo({top:0,behavior:'smooth'})};bar.append(view,nav,set);card.append(bar);list.append(card)})}
+function applyPrice(s){$('fuel-price').value=String(s.price);$('fuel-price').dispatchEvent(new Event('input',{bubbles:true}));window.scrollTo({top:0,behavior:'smooth'})}
+function render(){
+ markers?.clearLayers();const list=$('station-list');list.replaceChildren();$('station-count').textContent='('+stations.length+'곳)';
+ const ordered=[...stations].sort((a,b)=>$('order').value==='name'?a.name.localeCompare(b.name,'ko'):$('order').value==='distance'?a.km-b.km:a.price-b.price||a.km-b.km);
+ if(!ordered.length){list.textContent='검색 반경 내 가격 정보가 없습니다. 검색 위치 또는 반경을 변경해 보세요.';return}
+ ordered.forEach((s,index)=>{
+  if(map){const marker=L.marker([s.lat,s.lon]).addTo(markers);const popup=document.createElement('div');const title=document.createElement('strong');title.textContent=s.name;popup.append(title,document.createElement('br'),document.createTextNode(s.price.toLocaleString('ko-KR')+'원/L'));const choose=document.createElement('button');choose.textContent='이 가격 적용';choose.className='btn btn-ghost';choose.onclick=()=>applyPrice(s);popup.append(document.createElement('br'),choose);marker.bindPopup(popup);}
+  const card=document.createElement('div');card.className='station';const strong=document.createElement('strong');strong.textContent=s.name;card.append(strong);
+  const info=document.createElement('div');info.className='sub';info.textContent=s.price.toLocaleString('ko-KR')+'원/L · 약 '+s.km.toFixed(2)+'km';card.append(info);
+  if(index===0&&$('order').value==='price'){const tag=document.createElement('span');tag.className='tag';tag.textContent='검색 결과 최저가';card.append(tag)}
+  const bar=document.createElement('div');bar.className='toolbar';
+  const view=document.createElement('button');view.className='btn';view.textContent='지도에서 보기';view.onclick=()=>{map.setView([s.lat,s.lon],16);window.scrollTo({top:$('nearby').getBoundingClientRect().top+window.scrollY,behavior:'smooth'})};
+  const nav=document.createElement('button');nav.className='btn';nav.textContent='길찾기';nav.onclick=()=>window.open(navUrl(s),'_blank','noopener');
+  const set=document.createElement('button');set.className='btn';set.textContent='이 가격 적용';set.onclick=()=>applyPrice(s);
+  bar.append(view,nav,set);card.append(bar);list.append(card);
+ });
+ if(map&&stations.length){const bounds=L.latLngBounds(stations.map(s=>[s.lat,s.lon]));bounds.extend(center);map.fitBounds(bounds.pad(.12),{maxZoom:15});}
+}
 $('order').onchange=render;
-$('search-stations').onclick=async()=>{if(!center){msg('먼저 현재 위치 찾기를 누르거나 지도에서 검색 중심을 선택하세요.');return}const btn=$('search-stations');btn.disabled=true;msg('주변 주유소 위치를 검색하고 있습니다…');const radius=Number($('radius').value);const query='[out:json][timeout:25];(node["amenity"="fuel"](around:'+radius+','+center[0]+','+center[1]+');way["amenity"="fuel"](around:'+radius+','+center[0]+','+center[1]+'););out center;';const endpoints=['https://overpass.kumi.systems/api/interpreter','https://overpass-api.de/api/interpreter'];let error='';try{let data=null;for(const endpoint of endpoints){try{const ctl=new AbortController();const t=setTimeout(()=>ctl.abort(),18000);let r;try{r=await fetch(endpoint,{method:'POST',body:new URLSearchParams({data:query}),signal:ctl.signal})}finally{clearTimeout(t)}if(!r.ok)throw Error('HTTP '+r.status);data=await r.json();break}catch(e){error=e.message}}if(!data)throw Error(error||'서버 접속 실패');const unique=new Map();for(const e of data.elements||[]){const lat=e.lat??e.center?.lat,lon=e.lon??e.center?.lon;if(!Number.isFinite(lat)||!Number.isFinite(lon))continue;const t=e.tags||{};const km=haversine(center[0],center[1],lat,lon);const address=[t['addr:city'],t['addr:street'],t['addr:housenumber']].filter(Boolean).join(' ');unique.set(e.type+e.id,{name:t.name||t.brand||'이름 없는 주유소',lat,lon,km,address})}stations=[...unique.values()];render();msg('주유소 '+stations.length+'곳을 찾았습니다. 위치 정보는 공개 지도 데이터이며, 실시간 유가 정보는 제공되지 않습니다.')}catch(e){msg('주유소 검색 실패: '+e.message+'\n인터넷 연결을 확인하거나 잠시 후 다시 검색해 주세요.');}finally{btn.disabled=false}};
+$('search-stations').onclick=async()=>{
+ if(!center){msg('먼저 현재 위치 찾기를 누르거나 지도에서 검색 중심을 선택하세요.');return}
+ if(!window.proj4){msg('좌표 변환 라이브러리를 불러오지 못했습니다. 인터넷 연결을 확인하세요.');return}
+ const btn=$('search-stations');btn.disabled=true;msg('오피넷에서 주변 주유소 가격을 조회하고 있습니다…');
+ try{
+  const [x,y]=proj4('WGS84',KATEC,[center[1],center[0]]);
+  const url=new URL(API);url.searchParams.set('x',x.toFixed(2));url.searchParams.set('y',y.toFixed(2));url.searchParams.set('radius',$('radius').value);
+  const response=await fetch(url.toString());if(!response.ok)throw Error('조회 서버 HTTP '+response.status);
+  const data=await response.json();if(data.error)throw Error(data.error);
+  const rows=data?.RESULT?.OIL;
+  if(!Array.isArray(rows))throw Error('오피넷 응답 형식이 예상과 다릅니다.');
+  stations=rows.map(s=>{
+   const x=Number(s.GIS_X_COOR),y=Number(s.GIS_Y_COOR),price=Number(s.PRICE),km=Number(s.DISTANCE)/1000;
+   if(!Number.isFinite(x)||!Number.isFinite(y)||!Number.isFinite(price)||price<=0)return null;
+   const [lon,lat]=proj4(KATEC,'WGS84',[x,y]);
+   if(!Number.isFinite(lat)||!Number.isFinite(lon))return null;
+   return {id:s.UNI_ID,name:s.OS_NM||'이름 없는 주유소',price,lat,lon,km:Number.isFinite(km)?km:0};
+  }).filter(Boolean);
+  render();msg('오피넷 휘발유 가격 '+stations.length+'곳 조회 완료. 가격은 오피넷 갱신 시점 기준이며 실제 판매가와 다를 수 있습니다.');
+ }catch(e){msg('가격 검색 실패: '+e.message+'\n인터넷 연결 또는 오피넷 서비스 상태를 확인하세요.');}
+ finally{btn.disabled=false}
+};
 init();
 })();
 </script>
