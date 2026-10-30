@@ -30,6 +30,13 @@
 #station-map .leaflet-container img.leaflet-image-layer,#station-map .leaflet-container .leaflet-tile{max-width:none!important}
 #station-map .leaflet-marker-icon,#station-map .leaflet-marker-shadow{display:block}
 @media(max-width:600px){#station-map{height:340px;min-height:300px}}
+</style><style>
+/* Self-contained station pins: no external marker images required. */
+#station-map .fuel-pin{background:transparent;border:0;overflow:visible}
+#station-map .fuel-pin-label{display:inline-flex;align-items:center;gap:4px;white-space:nowrap;background:#fff;border:2px solid #1463b8;border-radius:18px;padding:5px 8px;box-shadow:0 2px 7px #0004;font:700 13px/1.2 system-ui,sans-serif;color:#123c68;transform:translate(-50%,-100%)}
+#station-map .fuel-pin-label.cheapest{border-color:#d14d1f;background:#fff3e9;color:#a12f12}
+#station-map .fuel-pin-label:after{content:"";position:absolute;left:calc(50% - 5px);bottom:-7px;border-left:5px solid transparent;border-right:5px solid transparent;border-top:7px solid #1463b8}
+#station-map .fuel-pin-label.cheapest:after{border-top-color:#d14d1f}
 </style></head><body>
 <div id="fuel-cost-calculator">
   <h2>가득 주유 금액 계산</h2>
@@ -210,9 +217,9 @@ function render(){
  const ordered=[...stations].sort((a,b)=>$('order').value==='name'?a.name.localeCompare(b.name,'ko'):$('order').value==='distance'?a.km-b.km:a.price-b.price||a.km-b.km);
  if(!ordered.length){list.textContent='검색 반경 내 가격 정보가 없습니다. 검색 위치 또는 반경을 변경해 보세요.';return}
  ordered.forEach((s,index)=>{
-  if(map){const marker=L.marker([s.lat,s.lon]).addTo(markers);const popup=document.createElement('div');const title=document.createElement('strong');title.textContent=s.name;popup.append(title,document.createElement('br'),document.createTextNode(s.price.toLocaleString('ko-KR')+'원/L'));const choose=document.createElement('button');choose.textContent='이 가격 적용';choose.className='btn btn-ghost';choose.onclick=()=>applyPrice(s);popup.append(document.createElement('br'),choose);marker.bindPopup(popup);}
+  if(map){const icon=L.divIcon({className:'fuel-pin',html:'<span class="fuel-pin-label'+(index===0&&$('order').value==='price'?' cheapest':'')+'">⛽ '+s.price.toLocaleString('ko-KR')+'원</span>',iconSize:[1,1],iconAnchor:[0,0],popupAnchor:[0,-22]});const marker=L.marker([s.lat,s.lon],{icon}).addTo(markers);const popup=document.createElement('div');const title=document.createElement('strong');title.textContent=s.name;popup.append(title,document.createElement('br'),document.createTextNode(s.price.toLocaleString('ko-KR')+'원/L'));const choose=document.createElement('button');choose.textContent='이 가격 적용';choose.className='btn btn-ghost';choose.onclick=()=>applyPrice(s);popup.append(document.createElement('br'),choose);marker.bindPopup(popup);}
   const card=document.createElement('div');card.className='station';const strong=document.createElement('strong');strong.textContent=s.name;card.append(strong);
-  const info=document.createElement('div');info.className='sub';info.textContent=s.price.toLocaleString('ko-KR')+'원/L · 약 '+s.km.toFixed(2)+'km';card.append(info);
+  const info=document.createElement('div');info.className='sub';info.textContent='휘발유 '+s.price.toLocaleString('ko-KR')+'원/L · 약 '+s.km.toFixed(2)+'km';card.append(info);
   if(index===0&&$('order').value==='price'){const tag=document.createElement('span');tag.className='tag';tag.textContent='검색 결과 최저가';card.append(tag)}
   const bar=document.createElement('div');bar.className='toolbar';
   const view=document.createElement('button');view.className='btn';view.textContent='지도에서 보기';view.onclick=()=>{map.setView([s.lat,s.lon],16);window.scrollTo({top:$('nearby').getBoundingClientRect().top+window.scrollY,behavior:'smooth'})};
@@ -220,7 +227,7 @@ function render(){
   const set=document.createElement('button');set.className='btn';set.textContent='이 가격 적용';set.onclick=()=>applyPrice(s);
   bar.append(view,nav,set);card.append(bar);list.append(card);
  });
- if(map&&stations.length){const bounds=L.latLngBounds(stations.map(s=>[s.lat,s.lon]));bounds.extend(center);map.fitBounds(bounds.pad(.12),{maxZoom:15});}
+ if(map&&stations.length){const bounds=L.latLngBounds(stations.map(s=>[s.lat,s.lon]));bounds.extend(center);map.fitBounds(bounds.pad(.25),{maxZoom:15,padding:[55,55]});}
 }
 $('order').onchange=render;
 $('search-stations').onclick=async()=>{
